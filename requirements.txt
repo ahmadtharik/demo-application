@@ -1,0 +1,7 @@
+django
+djangorestframework
+opencv-python
+Pillow
+tensorflow
+matplotlib
+keras
