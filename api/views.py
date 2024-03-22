@@ -71,8 +71,9 @@ def generate_tags(image):
                         (int(x1), int(y1) - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
+        image_path = os.path.join('modified', (image.name))
 
-        modified_image_path = os.path.join(settings.MEDIA_ROOT, 'modified',
+        modified_image_path = os.path.join(settings.MEDIA_ROOT, 'modified', 'uploads',
                                            os.path.basename(image.name))
         cv2.imwrite(modified_image_path, imag)
 
@@ -80,5 +81,5 @@ def generate_tags(image):
 
         print("No image selected")
 
-    return modified_image_path, predictions
+    return image_path, predictions
 
