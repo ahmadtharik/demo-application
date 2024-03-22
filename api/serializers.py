@@ -11,5 +11,5 @@ class ProcessedImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProcessedImage
-        fields = ('id', 'image', 'tags')
+        fields = ('id', 'image', 'processed_image', 'tags')
 

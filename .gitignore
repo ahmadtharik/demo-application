@@ -1,2 +1,5 @@
 CNN/data
 frontend/node_modules
+*.pyc
+api/migrations
+*~

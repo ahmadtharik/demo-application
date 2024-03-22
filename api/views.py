@@ -4,14 +4,12 @@ from .models import ProcessedImage, Tag
 from rest_framework.response import Response
 from .serializers import ProcessedImageSerializer
 from rest_framework.views import APIView
-
+from ultralytics import YOLO
 import os
 import cv2
-from PIL import Image
-import numpy as np
 
 
-import tensorflow as tf
+
 from django.conf import settings
 from django.template.response import TemplateResponse
 from django.utils.datastructures import MultiValueDictKeyError
@@ -34,7 +32,7 @@ class UploadImageView(generics.CreateAPIView):
         processed_image, tags = generate_tags(instance.image)
         instance.processed_image = processed_image
         tag_objects = []
-        for tag_name, value_percentage in tags.items():
+        for tag_name, value_percentage in tags:
             tag = Tag.objects.create(tag_name=tag_name,
                                      value_percentage=value_percentage)
             tag_objects.append(tag)
@@ -46,36 +44,41 @@ class UploadImageView(generics.CreateAPIView):
 
 
 def generate_tags(image):
-    message = ""
-    prediction = ""
+    predictions = []
+
 
     try:
         image = image
         path = str(settings.MEDIA_ROOT) + "/" + image.name
-        imag=cv2.imread(path)
-        img_from_ar = Image.fromarray(imag, 'RGB')
-        resized_image = img_from_ar.resize((50, 50))
+        imag = cv2.imread(path)
 
-        test_image =np.expand_dims(resized_image, axis=0) 
+        model2 = YOLO('yolov8x-oiv7.pt')
 
-        # load model
-        model = tf.keras.models.load_model(os.getcwd() + '/model.h5')
+        results2 = model2.predict(source=imag, conf=0.25)
 
-        result = model.predict(test_image)
+        boxes = results2[0].boxes.xyxy.tolist()
+        classes = results2[0].boxes.cls.tolist()
+        names = results2[0].names
+        confidences = results2[0].boxes.conf.tolist()
 
-        print("Prediction: " + str(np.argmax(result)))
+        for box, class_id, confidence in zip(boxes, classes, confidences):
+            x1, y1, x2, y2 = box
+            label = names[class_id]
+            predictions.append((label, confidence))
+            color = (0, 255, 0)
+            cv2.rectangle(imag, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+            cv2.putText(imag, f'{label} {confidence:.2f}',
+                        (int(x1), int(y1) - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        if (np.argmax(result) == 0):
-            prediction = "Cat"
-        elif (np.argmax(result) == 1):
-            prediction = "Dog"
-        else:
-            prediction = "Unknown"
 
-        print(prediction)
+        modified_image_path = os.path.join(settings.MEDIA_ROOT, 'modified',
+                                           os.path.basename(image.name))
+        cv2.imwrite(modified_image_path, imag)
+
     except MultiValueDictKeyError:
 
         print("No image selected")
 
-    return "path/to/image", {'tag1': 0.75, 'tag2': 0.9, 'tag3': 0.5}
+    return modified_image_path, predictions
 

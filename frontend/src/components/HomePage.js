@@ -44,7 +44,7 @@ export default class HomePage extends Component {
 
         this.setState({
           tags: data.tags,
-          returnImageUrl: data.image,
+          returnImageUrl: data.processed_image,
         });
       } else {
         console.error("Error uploading image:", response.statusText);
