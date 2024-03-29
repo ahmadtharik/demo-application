@@ -1,25 +1,21 @@
-from rest_framework import generics, status
-from api.models import ProcessedImage, Tag
-
-from rest_framework.response import Response
-from .serializers import ProcessedImageSerializer
-
-from ultralytics import YOLO
 import os
+from collections import defaultdict
+
 import cv2
 import torch
-from PIL import Image
-from collections import defaultdict
-from textblob import TextBlob
-
-from torchvision import datasets, transforms
-
 import yolov7
 from django.conf import settings
-
-from django.utils.datastructures import MultiValueDictKeyError
-
 from django.core.files.storage import FileSystemStorage
+from django.utils.datastructures import MultiValueDictKeyError
+from PIL import Image
+from rest_framework import generics, status
+from rest_framework.response import Response
+from torchvision import transforms
+from ultralytics import YOLO
+
+from api.models import ProcessedImage, Tag
+
+from .serializers import ProcessedImageSerializer
 
 
 class CustomFileSystemStorage(FileSystemStorage):
@@ -35,6 +31,7 @@ class UploadImageView(generics.CreateAPIView):
         instance = serializer.save()
 
         processed_image, base_processed_image, tags, base_tags = generate_tags(instance.image)
+
         instance.processed_image = processed_image
         instance.base_processed_image = base_processed_image
         tag_objects = []
@@ -46,7 +43,7 @@ class UploadImageView(generics.CreateAPIView):
 
         base_tag_objects = []
 
-        for tag_name, value_percentage in base_tags:
+        for tag_name, value_percentage, _ in base_tags:
 
             tag = Tag.objects.create(tag_name=tag_name,
                                      value_percentage=value_percentage)
@@ -58,8 +55,14 @@ class UploadImageView(generics.CreateAPIView):
 
 
 
+OBJECT_DETECTION_THRESHOLD=0.15
+CLASS_WEIGHT_THRESHOLD=0.1
+
 def calculate_class_weights(detections):
-    print(detections)
+    if not detections:
+        print("No detections found")
+        return None
+
     class_stats = defaultdict(lambda: {'total_weight': 0, 'count': 0})
 
     max_confidence = max(confidence for _, confidence, _ in detections)
@@ -69,6 +72,9 @@ def calculate_class_weights(detections):
     for class_id, confidence, box in detections:
         x1, y1, x2, y2 = box
         box_size = (x2 - x1) * (y2 - y1)
+        print(class_id,confidence)
+        if confidence < OBJECT_DETECTION_THRESHOLD:
+            continue
 
         weight = (box_size / max_box_size) * (confidence / max_confidence)
 
@@ -83,6 +89,8 @@ def calculate_class_weights(detections):
 
     class_weights = {class_id: stats['total_weight'] / total_confidence for
                      class_id, stats in class_stats.items()}
+    # after weights are determined, delete those with low weights
+    class_weights = {class_id: weight for class_id, weight in class_weights.items() if weight > CLASS_WEIGHT_THRESHOLD}
 
     return class_weights
 
@@ -145,7 +153,7 @@ def generate_tags(image):
         for box, class_id, confidence in zip(boxes, classes, confidences):
             x1, y1, x2, y2 = box
             label = names[class_id]
-            base_predictions.append((label, confidence))
+            base_predictions.append((label, confidence,box))
             color = (0, 255, 0)
             cv2.rectangle(imag, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
             cv2.putText(imag, f'{label} {confidence:.2f}',
@@ -192,8 +200,25 @@ def generate_tags(image):
             predictions.append((label_animal, confidence_animal, box_animal))
 
 
+
+        # performing the Tags
+        weighted_classes = (calculate_class_weights(predictions[1:]))
+        # in case no classes are found return an empty array
+        weighted_classes = [(class_name, weight)
+                            for class_name, weight in weighted_classes.items()] if weighted_classes else []
+
+        weighted_classes.sort(key=lambda x: x[1], reverse=True)
+
+        weighted_classes.insert(0, predictions[0])
+
+        i = -1
         for label, confidence, box in predictions[1:]:
+            i = i+1
             x1, y1, x2, y2 = box
+
+            # if the object detection confidence or the weighted significance is below the threshold, skip
+            if confidence < OBJECT_DETECTION_THRESHOLD:
+                continue
             color = (0, 255, 0)
             cv2.rectangle(imag, (int(x1), int(y1)), (int(x2), int(y2)), color,
                           2)
@@ -208,17 +233,10 @@ def generate_tags(image):
                                            os.path.basename(image.name))
         cv2.imwrite(modified_image_path, imag)
 
-        weighted_classes = (calculate_class_weights(predictions[1:]))
 
-        weighted_classes = tuples_list = [(class_name, weight) for class_name, weight in weighted_classes.items()]
-
-        weighted_classes.sort(key=lambda x: x[1], reverse=True)
-
-        weighted_classes.insert(0, predictions[0])
 
 
     except MultiValueDictKeyError:
-
         print("No image selected")
 
     return image_path, base_image_path,  weighted_classes, base_predictions
