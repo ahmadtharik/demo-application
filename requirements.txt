@@ -3,3 +3,4 @@ djangorestframework
 matplotlib
 ultralytics
 opencv-python
+yolov7detect

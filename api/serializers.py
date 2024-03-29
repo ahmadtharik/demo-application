@@ -8,8 +8,9 @@ class TagSerializer(serializers.ModelSerializer):
 
 class ProcessedImageSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
+    base_tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         model = ProcessedImage
-        fields = ('id', 'image', 'processed_image', 'tags')
+        fields = ('id', 'image', 'processed_image', 'tags', 'base_processed_image', 'base_tags')
 

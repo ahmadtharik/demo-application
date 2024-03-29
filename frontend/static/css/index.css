@@ -11,10 +11,11 @@ body {
   height: 100%;
 }
 
+
 .header {
   background-size: cover;
   background-position: center;
-  height: 30vh;
+  height: 10vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,4 +25,9 @@ body {
 
 .image {
   max-height: 500px;
+}
+
+
+.base-image {
+  max-height: 50vh;
 }

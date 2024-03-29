@@ -8,7 +8,9 @@ export default class HomePage extends Component {
       selectedFile: null,
       imageUrl: "",
       tags: [],
+      base_tags: [],
       returnImageUrl: "",
+      returnImageBaseUrl: "",
     };
     this.handleFileChange = this.handleFileChange.bind(this);
     this.handleUpload = this.handleUpload.bind(this);
@@ -45,6 +47,8 @@ export default class HomePage extends Component {
         this.setState({
           tags: data.tags,
           returnImageUrl: data.processed_image,
+          base_tags: data.base_tags,
+          returnImageBaseUrl: data.base_processed_image
         });
       } else {
         console.error("Error uploading image:", response.statusText);
@@ -55,7 +59,7 @@ export default class HomePage extends Component {
   }
 
   render() {
-    const { imageUrl, tags, returnImageUrl } = this.state;
+    const { imageUrl, tags, returnImageUrl, base_tags, returnImageBaseUrl } = this.state;
 
     return (
       <div className="container">
@@ -64,16 +68,25 @@ export default class HomePage extends Component {
             <span>Image Classification</span>
           </h1>
         </div>
-        <div className="d-flex flex-column align-items-center">
+        <div className="d-flex flex-column align-items-center mb-3">
           <div className="row d-flex align-items-center  justify-content-center">
             {imageUrl && (
               <div className={returnImageUrl ? "card col-5" : "card col-12"}>
                 <img src={imageUrl} className="card-image-top image"></img>
               </div>
             )}
-            {returnImageUrl && (
+            {returnImageBaseUrl && (
               <div className={"ms-3 card col-5"}>
-                <img src={returnImageUrl} className="card-image-top image"></img>
+                <img src={returnImageBaseUrl} className="card-image-top image"></img>
+                <h5 className='d-flex justify-content-center my-2'>Pretrained Licensed Model from Ultralytics</h5>
+              </div>
+
+
+            )}
+            {returnImageUrl && (
+              <div className={"ms-3 mt-5 mb-5 card col-10"}>
+                <img src={returnImageUrl} className="card-image-top base-image"></img>
+                <h5 className='d-flex justify-content-center my-2'>Trained Model</h5>
               </div>
             )}
           </div>
@@ -92,6 +105,17 @@ export default class HomePage extends Component {
                 Tags:
               </Typography>
               {tags.map((tag, index) => (
+                <Chip key={index} label={`${tag.tag_name}: ${tag.value_percentage}`} style={{ margin: "5px" }} />
+              ))}
+            </div>
+          )}
+
+          {base_tags.length > 0 && (
+            <div>
+              <Typography variant="h6" component="h3">
+                Base Tags:
+              </Typography>
+              {base_tags.map((tag, index) => (
                 <Chip key={index} label={`${tag.tag_name}: ${tag.value_percentage}`} style={{ margin: "5px" }} />
               ))}
             </div>

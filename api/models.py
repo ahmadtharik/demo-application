@@ -10,5 +10,8 @@ class Tag(models.Model):
 class ProcessedImage(models.Model):
     image = models.ImageField(upload_to='uploads/')
     processed_image = models.ImageField(upload_to='processed_images/', blank=True)
-    tags = models.ManyToManyField(Tag, blank=True)
+    tags = models.ManyToManyField(Tag, blank=True, related_name='tag')
+    base_processed_image = models.ImageField(upload_to='processed_images/',
+                                             blank=True)
+    base_tags = models.ManyToManyField(Tag, blank=True, related_name='base_tag')
 
